@@ -11,5 +11,5 @@ path = "./lib.rs"
 iso3166 = "1.2.1"
 itertools = "0.14.0"
 quote = "1.0.40"
-rust_icu_uloc = { git = "https://github.com/google/rust_icu.git" }
+rust_icu_uloc = { git = "https://github.com/google/rust_icu.git", rev = "2d01ba1b6d47e3b74b295da6e24439108ac8ee21" }
 unic-langid-impl = "0.9.5"
