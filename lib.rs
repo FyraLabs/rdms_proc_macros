@@ -27,8 +27,8 @@ pub fn keymap(static_name: TokenStream) -> TokenStream {
     let variants = variants.into_group_map_by(|(_, layout_id, _)| *layout_id);
     let layouts = layouts.lines().skip(1).map(|line| {
         let line = line.trim();
-        let id = line.split_once(" ").unwrap().0;
-        let name = line.split_once(" ").unwrap().1.trim();
+        let (id, name) = line.split_once(" ").unwrap();
+        let name = name.trim_start();
         let variants = variants.get(id).map(|variants| {
             (variants.iter())
                 .map(|(variant_id, _, name)| {
@@ -55,7 +55,7 @@ pub fn keymap(static_name: TokenStream) -> TokenStream {
             pub name: &'static str,
             pub variants: phf::Map<&'static str, &'static str>,
         }
-        pub static #static_name: phf::Map<&'static str, Layout> = phf::phf_map! {
+        pub static #static_name: phf::OrderedMap<&'static str, Layout> = phf::phf_ordered_map! {
             #(#layouts)*
         };
     }
