@@ -68,39 +68,28 @@ pub fn comptime_localedef_langrows(const_name: TokenStream) -> TokenStream {
     let mut langs = lang::LanguageRow::list();
 
     // sort the popular languages, put to top
-    for lang in lang::POPULAR_LANGS.iter().rev() {
-        let Some(index) = langs.iter().position(|l| l.locale.starts_with(lang)) else {
-            continue;
-        };
-        let x = langs.remove(index);
-        langs.insert(0, x);
-    }
+    // for lang in lang::POPULAR_LANGS.iter().rev() {
+    //     let Some(index) = langs.iter().position(|l| l.locale.starts_with(lang)) else {
+    //         continue;
+    //     };
+    //     let x = langs.remove(index);
+    //     langs.insert(0, x);
+    // }
 
-    langs.push(lang::LanguageRow {
-        locale: "en-owo".to_owned(),
-        name: "English (OWO)".to_owned(),
-        native_name: "OWO".to_string(),
+    langs.push(lang::LanguageRow { locale: "en-owo".to_owned(), native_name: "OWO".to_string() });
+
+    let langs = langs.into_iter().map(|lang::LanguageRow { locale, native_name }| {
+        quote! {
+            LanguageRow {
+                locale: #locale,
+                native_name: #native_name,
+            },
+        }
     });
-
-    let langs = langs.into_iter().map(
-        |lang::LanguageRow {
-             locale,
-             name,
-             native_name,
-         }| {
-            quote! {
-                LanguageRow {
-                    locale: #locale,
-                    name: #name,
-                    native_name: #native_name,
-                },
-            }
-        },
-    );
     let len = langs.len();
 
     quote! {
-        const #const_name: [LanguageRow; #len] = [#(#langs)*];
+        pub const #const_name: [LanguageRow; #len] = [#(#langs)*];
     }
     .into()
 }
