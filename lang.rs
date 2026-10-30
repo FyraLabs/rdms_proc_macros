@@ -5,6 +5,7 @@ use icu::experimental::displaynames;
 //
 // These are filtered by our Ultramarine website plausible statistics and the 5 most popular
 // langauges in the world.
+#[expect(dead_code, reason = "the popular-first sorting in lib.rs is disabled for now")]
 pub const POPULAR_LANGS: [&str; 9] =
     ["en_US", "zh_CN", "zh_TW", "hi_IN", "es_ES", "ar_AE", "fr_FR", "pt_BR", "de_DE"];
 #[derive(Clone, Debug)]
@@ -23,6 +24,9 @@ impl LanguageRow {
         let mut stdout = cmd.output().expect("cannot run localedef").stdout;
         (stdout.split_mut(|&b| b == b'\n'))
             .filter(|v| !v.contains(&b'.') && !v.contains(&b'@') && !v.is_empty())
+            // legacy glibc aliases (`bokmal`, `deutsch`, …) aren't locales, real ones have a
+            // territory (`en_US`) or are a bare 2–3 letter language code (`eo`)
+            .filter(|v| v.contains(&b'_') || v.len() <= 3)
             .filter_map(|locale| {
                 locale.iter_mut().filter(|c| **c == b'_').for_each(|c| *c = b'-');
                 let locale = icu::locale::Locale::try_from_utf8(locale)
