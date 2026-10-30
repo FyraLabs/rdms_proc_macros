@@ -5,9 +5,8 @@ use icu::experimental::displaynames;
 //
 // These are filtered by our Ultramarine website plausible statistics and the 5 most popular
 // langauges in the world.
-#[expect(dead_code, reason = "the popular-first sorting in lib.rs is disabled for now")]
 pub const POPULAR_LANGS: [&str; 9] =
-    ["en_US", "zh_CN", "zh_TW", "hi_IN", "es_ES", "ar_AE", "fr_FR", "pt_BR", "de_DE"];
+    ["en-US", "zh-CN", "zh-TW", "hi-IN", "es-ES", "ar-AE", "fr-FR", "pt-BR", "de-DE"];
 #[derive(Clone, Debug)]
 
 pub struct LanguageRow {
