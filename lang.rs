@@ -34,10 +34,18 @@ impl LanguageRow {
                 if locale == icu::locale::Locale::UNKNOWN {
                     return None;
                 };
+                // ICU's built-in data lacks names in many languages (Georgian, Icelandic,
+                // Swahili, …), those are named in English rather than left out
                 let displaynamehdl = displaynames::multi::LocaleDisplayNamesFormatter::try_new(
                     (&locale).into(),
                     displaynameopt,
                 )
+                .or_else(|_| {
+                    displaynames::multi::LocaleDisplayNamesFormatter::try_new(
+                        icu::locale::locale!("en-US").into(),
+                        displaynameopt,
+                    )
+                })
                 .ok()?;
 
                 Some(Self {
