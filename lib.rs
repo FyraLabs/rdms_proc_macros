@@ -4,6 +4,31 @@ use itertools::Itertools;
 use proc_macro::TokenStream;
 use quote::quote;
 
+const EVDEV_LST: &str = "/usr/share/X11/xkb/rules/evdev.lst";
+
+/// layouts left out of the list, `custom` is a placeholder for a user-written layout and empty
+/// unless someone put one there
+const SKIPPED_LAYOUTS: &[&str] = &["custom"];
+
+/// the `(id, description)` lines under each `! section` header of an xkb `.lst` file
+fn lst_sections(file: &str) -> std::collections::HashMap<&str, Vec<(&str, &str)>> {
+    let mut sections = std::collections::HashMap::<_, Vec<_>>::new();
+    let mut section = None;
+    for line in file.lines() {
+        if let Some(name) = line.strip_prefix('!') {
+            section = Some(name.trim());
+            continue;
+        }
+        let (Some(section), Some((id, desc))) =
+            (section, line.trim().split_once(char::is_whitespace))
+        else {
+            continue;
+        };
+        sections.entry(section).or_default().push((id, desc.trim()));
+    }
+    sections
+}
+
 /// Generate the `KEYMAP` static map.
 ///
 /// This proc_macro is modified from this message:
@@ -13,43 +38,45 @@ use quote::quote;
 #[proc_macro]
 pub fn keymap(static_name: TokenStream) -> TokenStream {
     let static_name = quote::format_ident!("{}", static_name.to_string());
-    let file = std::fs::read_to_string("/usr/share/X11/xkb/rules/evdev.lst").unwrap();
-    let mut sections = file.split("\n\n");
-    let layouts = sections.nth(1).unwrap();
-    let variants = sections.next().unwrap();
-    let variants = variants.lines().skip(1).map(|line| {
-        let line = line.trim();
-        let variant_id = line.split_once(" ").unwrap().0;
-        let second_column = line.split_once(" ").unwrap().1.trim();
-        let (layout_id, name) = second_column.split_once(": ").unwrap();
-        (variant_id, layout_id, name)
-    });
-    let variants = variants.into_group_map_by(|(_, layout_id, _)| *layout_id);
-    let layouts = layouts.lines().skip(1).map(|line| {
-        let line = line.trim();
-        let (id, name) = line.split_once(" ").unwrap();
-        let name = name.trim_start();
-        let variants = variants.get(id).map(|variants| {
-            (variants.iter())
-                .map(|(variant_id, _, name)| {
-                    quote! {
-                        #variant_id => #name,
-                    }
-                })
-                .collect_vec()
-        });
-        let variants = variants.unwrap_or_default();
-        quote! {
-            #id => Layout {
-                name: #name,
-                variants: phf::phf_map! {
-                    #(#variants)*
-                },
-            },
+    let file = match std::fs::read_to_string(EVDEV_LST) {
+        Ok(file) => file,
+        Err(e) => {
+            let msg = format!("cannot read {EVDEV_LST}: {e}");
+            return quote! { compile_error!(#msg); }.into();
         }
-    });
+    };
+    let sections = lst_sections(&file);
+    let (Some(layouts), Some(variants)) = (sections.get("layout"), sections.get("variant")) else {
+        let msg = format!("{EVDEV_LST} has no `! layout` or `! variant` section");
+        return quote! { compile_error!(#msg); }.into();
+    };
+    // a variant's description is `layout: name`
+    let mut by_layout = std::collections::HashMap::<_, Vec<_>>::new();
+    for &(variant_id, desc) in variants {
+        let Some((layout_id, name)) = desc.split_once(": ") else {
+            let msg = format!("{EVDEV_LST}: variant `{variant_id}` has no layout: {desc:?}");
+            return quote! { compile_error!(#msg); }.into();
+        };
+        by_layout.entry(layout_id).or_default().push(quote! { #variant_id => #name, });
+    }
+    let layouts =
+        layouts.iter().filter(|(id, _)| !SKIPPED_LAYOUTS.contains(id)).map(|(id, name)| {
+            let variants = by_layout.remove(id).unwrap_or_default();
+            quote! {
+                #id => Layout {
+                    name: #name,
+                    variants: phf::phf_map! {
+                        #(#variants)*
+                    },
+                },
+            }
+        });
+    let layouts = layouts.collect_vec();
 
     quote! {
+        // so cargo rebuilds when xkeyboard-config changes the list
+        const _: &[u8] = include_bytes!(#EVDEV_LST);
+
         #[derive(Debug)]
         pub struct Layout {
             pub name: &'static str,
