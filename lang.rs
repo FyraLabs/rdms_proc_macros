@@ -12,6 +12,7 @@ pub const POPULAR_LANGS: [&str; 9] =
 pub struct LanguageRow {
     pub locale: String,
     pub native_name: String,
+    pub en_name: String,
 }
 impl LanguageRow {
     pub fn list() -> Vec<Self> {
@@ -21,6 +22,11 @@ impl LanguageRow {
         let mut cmd = std::process::Command::new("localedef");
         cmd.arg("--list-archive").stdout(std::process::Stdio::piped());
         let mut stdout = cmd.output().expect("cannot run localedef").stdout;
+        let en_hdl = displaynames::multi::LocaleDisplayNamesFormatter::try_new(
+            icu::locale::locale!("en-US").into(),
+            displaynameopt,
+        )
+        .expect("can't make en icu formatter");
         (stdout.split_mut(|&b| b == b'\n'))
             .filter(|v| !v.contains(&b'.') && !v.contains(&b'@') && !v.is_empty())
             // legacy glibc aliases (`bokmal`, `deutsch`, …) aren't locales, real ones have a
@@ -51,6 +57,7 @@ impl LanguageRow {
                 Some(Self {
                     locale: locale.to_string(),
                     native_name: displaynamehdl.of(&locale).to_string(),
+                    en_name: en_hdl.of(&locale).to_string(),
                 })
             })
             .collect()

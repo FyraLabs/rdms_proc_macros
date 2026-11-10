@@ -61,11 +61,12 @@ pub fn keymap(static_name: TokenStream) -> TokenStream {
     }
     let layouts =
         layouts.iter().filter(|(id, _)| !SKIPPED_LAYOUTS.contains(id)).map(|(id, name)| {
-            let variants = by_layout.remove(id).unwrap_or_default();
+            let mut variants = by_layout.remove(id).unwrap_or_default();
+            variants.insert(0, quote! { "default" => "Default", });
             quote! {
                 #id => Layout {
                     name: #name,
-                    variants: phf::phf_map! {
+                    variants: phf::phf_ordered_map! {
                         #(#variants)*
                     },
                 },
@@ -80,7 +81,7 @@ pub fn keymap(static_name: TokenStream) -> TokenStream {
         #[derive(Debug)]
         pub struct Layout {
             pub name: &'static str,
-            pub variants: phf::Map<&'static str, &'static str>,
+            pub variants: phf::OrderedMap<&'static str, &'static str>,
         }
         pub static #static_name: phf::OrderedMap<&'static str, Layout> = phf::phf_ordered_map! {
             #(#layouts)*
@@ -103,13 +104,18 @@ pub fn comptime_localedef_langrows(const_name: TokenStream) -> TokenStream {
         langs.insert(0, x);
     }
 
-    langs.push(lang::LanguageRow { locale: "en-owo".to_owned(), native_name: "OWO".to_string() });
+    langs.push(lang::LanguageRow {
+        locale: "en-owo".to_owned(),
+        native_name: "OWO".to_string(),
+        en_name: "OWO".to_string(),
+    });
 
-    let langs = langs.into_iter().map(|lang::LanguageRow { locale, native_name }| {
+    let langs = langs.into_iter().map(|lang::LanguageRow { locale, native_name, en_name }| {
         quote! {
             LanguageRow {
                 locale: #locale,
                 native_name: #native_name,
+                en_name: #en_name,
             },
         }
     });
