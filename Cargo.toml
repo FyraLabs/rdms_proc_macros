@@ -8,6 +8,6 @@ proc-macro = true
 path = "./lib.rs"
 
 [dependencies]
-icu = { version = "2.3.1", features = ["unstable"] }
+icu = { version = "2.3.1", features = ["unstable", "logging"] }
 itertools = "0.15.0"
 quote = "1.0.40"
